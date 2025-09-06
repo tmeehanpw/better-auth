@@ -18,7 +18,7 @@ import { getCookie } from '@tanstack/react-start/server'
 import { getCookieName } from '@/lib/auth-server-utils'
 
 const getToken = async () => {
-  const sessionCookieName = await getCookieName()
+  const sessionCookieName = `__Secure-${await getCookieName()}`
   return getCookie(sessionCookieName)
 }
 
@@ -29,6 +29,20 @@ function setupClient(token?: string) {
   }
   return client
 }
+
+export const fetchTodos = createServerFn({ method: 'GET' })
+  .handler(async () => {
+    const token = await getToken()
+    console.log(token)
+    const todos = await setupClient(token).query(api.todos.get)
+
+  // Serialize Convex Ids to strings so they're safe to send over the wire
+  return todos.map(todo => ({
+    ...todo,
+    _id: todo._id.toString(),
+    userId: todo.userId.toString(),
+  }))
+})
 
 // Handle form data
 export const toggleCompletedTodo = createServerFn({ method: 'POST' })
@@ -84,7 +98,10 @@ export const addTodo = createServerFn({ method: 'POST' })
   })
 
 export const TodoList = () => {
-  const { data: todos } = useSuspenseQuery(convexQuery(api.todos.get, {}))
+  const { data: todos } = useSuspenseQuery({
+    queryKey: ['todos'],
+    queryFn: () => fetchTodos(),
+  })
 
   return (
     <TodoListContainer>

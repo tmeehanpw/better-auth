@@ -6,15 +6,27 @@ import { routerWithQueryClient } from '@tanstack/react-router-with-query'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { ConvexQueryClient } from '@convex-dev/react-query'
 import { QueryClient } from '@tanstack/react-query'
+import { authClient } from './lib/auth-client'
+
+let convex: ConvexReactClient | null = null
 
 export function createRouter() {
   const CONVEX_URL = (import.meta as any).env.VITE_CONVEX_URL!
   if (!CONVEX_URL) {
     throw new Error('missing VITE_CONVEX_URL envar')
   }
-  const convex = new ConvexReactClient(CONVEX_URL, {
-    unsavedChangesWarning: false,
-  })
+
+  if (!convex) {
+    convex = new ConvexReactClient(CONVEX_URL, {
+      unsavedChangesWarning: false,
+    })
+
+    convex.setAuth(async () => {
+      const {data: session, error} = await authClient.getSession()
+      return session?.session?.token ?? null
+    })
+  }
+
   const convexQueryClient = new ConvexQueryClient(convex)
 
   const queryClient: QueryClient = new QueryClient({
